@@ -1,6 +1,6 @@
 import { prismaClient } from "@/app/lib/db";
 import { getServerSession } from "next-auth";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 const UpvoteSchema = z.object({
@@ -9,10 +9,6 @@ const UpvoteSchema = z.object({
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession();
-
-    if (!session?.user?.email) {
-        return new Response("Unauthorized", { status: 403 });
-    }
     
     const user = await prismaClient.user.findFirst({
         where: {
@@ -20,7 +16,11 @@ export async function POST(req: NextRequest) {
         }
     });
     if(!user) {
-        return new Response("Unauthorized", { status: 403 });
+        return NextResponse.json({
+            message: "Unauthorized"
+        }, { 
+                status: 403
+            });
     }
 
     try {
