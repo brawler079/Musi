@@ -6,7 +6,7 @@ import { Providers } from "./providers";
 const geist = Geist({subsets: ["latin"]});
 
 export const metadata: Metadata = {
-  title: "Musi",
+  title: "MuSync",
   description: "A music streaming app",
 };
 

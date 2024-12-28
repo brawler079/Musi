@@ -4,39 +4,57 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 const UpvoteSchema = z.object({
-    streamId: z.string(),
-})
+  streamId: z.string(),
+});
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession();
-    
-    const user = await prismaClient.user.findFirst({
-        where: {
-            email: session?.user?.email ?? ""
-        }
-    });
-    if(!user) {
-        return NextResponse.json({
-            message: "Unauthorized"
-        }, { 
-                status: 403
-            });
-    }
+  const session = await getServerSession();
 
-    try {
-        const data = UpvoteSchema.parse(await req.json());
+  // Ensure that the session and session.user are defined
+  if (!session || !session.user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
 
-        await prismaClient.upvote.create({
-            data: {
-                userId: user.id,
-                streamId: data.streamId
-            }
-        })
+  const user = await prismaClient.user.findFirst({
+    where: { email: session.user.email as string },
+  });
 
-    } catch (error) {
-        return new Response("Error while upvoting stream", { status: 403 });
-        
-    }
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
+  }
 
+  try {
     const data = UpvoteSchema.parse(await req.json());
+
+    // Check if the user has already upvoted
+    const existingUpvote = await prismaClient.upvote.findFirst({
+      where: { userId: user.id, streamId: data.streamId },
+    });
+
+    // If the user has already upvoted, prevent multiple upvotes
+    if (existingUpvote) {
+      return NextResponse.json({ message: "Already upvoted" }, { status: 400 });
+    }
+
+    // Create the upvote
+    await prismaClient.upvote.create({
+      data: {
+        userId: user.id,
+        streamId: data.streamId,
+      },
+    });
+
+    // Optionally, update the upvote count directly in the stream (if necessary)
+    const updatedStream = await prismaClient.stream.update({
+      where: { id: data.streamId },
+      data: {
+        // You could track the total upvotes count here, if needed
+      },
+    });
+
+    return NextResponse.json({ message: "Upvoted successfully" });
+  } catch (error) {
+    console.error("Error processing upvote:", error);
+    return NextResponse.json({ message: "Error processing upvote" }, { status: 500 });
+  }
 }
