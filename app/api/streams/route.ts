@@ -4,9 +4,7 @@ import {z} from "zod";
 
 //@ts-ignore
 import youtubesearchapi from "youtube-search-api";
-
-
-var YT_REGEX = /^(?:(?:https?:)?\/\/)?(?:www\.)?(?:m\.)?(?:youtu(?:be)?\.com\/(?:v\/|embed\/|watch(?:\/|\?v=))|youtu\.be\/)((?:\w|-){11})(?:\S+)?$/;
+import { YT_REGEX } from "@/app/lib/utils";
 
 
 const CreateStreamSchema = z.object({

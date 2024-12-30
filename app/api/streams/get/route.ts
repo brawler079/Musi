@@ -1,27 +1,37 @@
-// Example of a Prisma-based handler to fetch streams and their vote counts
 import { prismaClient } from "@/app/lib/db";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
+    // Fetch streams with the count of upvotes and sort them by the number of upvotes
     const streams = await prismaClient.stream.findMany({
-      include: {
-        upvotes: { // Assuming `upvotes` is a relation to count votes
-          select: { userId: true }, // To count how many votes a stream has
+      select: {
+        id: true,
+        title: true,
+        // Use the `count` function to count the related upvotes
+        _count: {
+          select: {
+            upvotes: true, // Count the number of upvotes
+          },
+        },
+      },
+      orderBy: {
+        upvotes: {
+          _count: "desc", // Sort by the count of upvotes in descending order
         },
       },
     });
 
-    // Calculate votes from the upvotes relation
+    // Map the streams to a format suitable for the frontend
     const streamsWithVotes = streams.map((stream) => ({
       id: stream.id,
       title: stream.title,
-      upvotes: stream.upvotes.length, // Count the number of upvotes
+      upvotes: stream._count.upvotes, // Access the count of upvotes
     }));
 
-    return NextResponse.json({ streams: streamsWithVotes });
+    return NextResponse.json({ streams: streamsWithVotes }); // Return the sorted streams
   } catch (error) {
     console.error("Error fetching streams:", error);
-    return NextResponse.json({ error: "Error fetching streams" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch streams" }, { status: 500 });
   }
 }

@@ -1,144 +1,143 @@
-'use client'
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import axios from "axios"
-import { Play, Share2, SkipForward, ThumbsDown, ThumbsUp } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import z from 'zod';
-
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Play, Share2, SkipForward, ThumbsDown, ThumbsUp } from "lucide-react";
+import { YT_REGEX } from "../lib/utils";
+import { Appbar } from "../components/Appbar";
+import { ToastContainer, toast } from "react-toastify";
 
 interface Video {
-  id: string
-  title: string
-  votes: number
-  userVote: 'none' | 'upvote' | 'downvote'
+  id: string;
+  title: string;
+  votes: number;
+  userVote: "none" | "upvote" | "downvote";
 }
 
 export default function Dashboard() {
-  const [videoLink, setVideoLink] = useState('')
-  const [previewId, setPreviewId] = useState('')
-  const [queue, setQueue] = useState<Video[]>([])
-  const [currentVideo, setCurrentVideo] = useState('')
-  const [isClient, setIsClient] = useState(false)
+  const [videoLink, setVideoLink] = useState("");
+  const [previewId, setPreviewId] = useState("");
+  const [queue, setQueue] = useState<Video[]>([]);
+  const [currentVideo, setCurrentVideo] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const REFRESH_INTERVAL_MS = 10 * 1000
+  const REFRESH_INTERVAL_MS = 10000;
+  const creatorId = "3d008513-2163-4a1c-9a12-f5b9fc9b2d3b"; // Replace this with actual user ID from your auth system
 
-  // Ensure rendering only happens after client hydration
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
-
-  // Fetch queue from the backend and include userVote state
+  // Fetch queue from the backend
   const refreshStreams = async () => {
     try {
-      const res = await axios.get<{ streams: { id: string; title: string; upvotes: number; userVote: string }[] }>('/api/streams/get')
+      const res = await axios.get<{ streams: { id: string; title: string; upvotes: number; userVote: string }[] }>(
+        "/api/streams/get"
+      );
+
       setQueue(
         res.data.streams.map((stream) => ({
           id: stream.id,
           title: stream.title,
           votes: stream.upvotes,
-          userVote: stream.userVote === 'upvote' ? 'upvote' : (stream.userVote === 'downvote' ? 'downvote' : 'none'),
+          userVote:
+            stream.userVote === "upvote"
+              ? "upvote"
+              : stream.userVote === "downvote"
+              ? "downvote"
+              : "none",
         }))
-      )
-    } catch (error) {
-      console.error('Error fetching streams:', error)
+      );
+    } catch (err) {
+      console.error("Error fetching streams:", err);
+      setError("Failed to load streams. Please try again later.");
     }
-  }
+  };
 
+  // Update queue periodically
   useEffect(() => {
-    refreshStreams()
-    const interval = setInterval(refreshStreams, REFRESH_INTERVAL_MS)
-    return () => clearInterval(interval)
-  }, [])
+    refreshStreams();
+    const interval = setInterval(refreshStreams, REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, []);
 
   // Handle input change for YouTube link
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setVideoLink(e.target.value)
-    const id = e.target.value.includes('v=') ? e.target.value.split('v=')[1].split('&')[0] : ''
-    setPreviewId(id)
-  }
+    setError(null);
+    const link = e.target.value;
+    setVideoLink(link);
+    const id = link.includes("v=") ? link.split("v=")[1].split("&")[0] : "";
+    setPreviewId(id);
+  };
 
   // Add new video to the queue
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (previewId) {
-      setQueue([...queue, { id: previewId, title: `New Song (${previewId})`, votes: 0, userVote: 'none' }])
-      setVideoLink('')
-      setPreviewId('')
+    e.preventDefault();
 
-      // Optionally send this new video to the server
-      await axios.post('/api/streams', { videoId: previewId })
-    } else {
-      alert('Invalid YouTube link')
+    if (!previewId || !videoLink.match(YT_REGEX)) {
+      setError("Invalid YouTube link. Please provide a valid URL.");
+      return;
     }
-  }
+    setLoading(true);
+    try {
+      const creatorId = "3d008513-2163-4a1c-9a12-f5b9fc9b2d3b"; // Replace this with actual user ID from your auth system
+      await axios.post("/api/streams", { 
+        creatorId,
+        url: videoLink
+    });
+      await refreshStreams();
+      setVideoLink("");
+      setPreviewId("");
+    } catch (err) {
+      console.error("Error adding stream:", err);
+      setError("Failed to add stream. Please try again later.");
+    } finally {
+        setLoading(false);
+    }
+  };
 
   // Handle voting logic (upvote or downvote)
   const handleVote = async (id: string, isUpvote: boolean) => {
-    // Send the updated vote to the server
-    const endpoint = isUpvote ? '/api/streams/upvote' : '/api/streams/downvote';
-
+    const endpoint = isUpvote ? "/api/streams/upvote" : "/api/streams/downvote";
     try {
-      await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          streamId: id,
-        }),
-      });
-
-      // After voting, refetch the queue to get the updated votes from the server
+      await axios.post(endpoint, { streamId: id });
       refreshStreams();
-    } catch (error) {
-      console.error('Error voting:', error)
+    } catch (err) {
+      console.error("Error voting:", err);
+      setError("Failed to submit your vote. Please try again later.");
     }
-  }
+  };
 
   // Play the next song
   const playNextSong = () => {
     if (queue.length > 0) {
-      setCurrentVideo(queue[0].id)
-      setQueue(queue.slice(1))
+      setCurrentVideo(queue[0].id);
+      setQueue(queue.slice(1));
     } else {
-      setCurrentVideo('')
+      setCurrentVideo("");
     }
-  }
+  };
 
   // Share functionality
   const handleShare = async () => {
-    const shareData = {
-      title: 'Join my MuSync stream!',
-      text: 'Help me choose the next song for my stream!',
-      url: window.location.href,
-    }
+    const shareUrl = `${window.location.hostname}/creator/${creatorId}`;
 
-    if (navigator.share && navigator.canShare(shareData)) {
-      try {
-        await navigator.share(shareData)
+    try {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Link copied to clipboard!");
       } catch (err) {
-        console.error('Error sharing:', err)
+        console.error("Error sharing:", err);
+        toast.error("Failed to share the link. Please try again.");
       }
-    } else {
-      navigator.clipboard
-        .writeText(window.location.href)
-        .then(() => alert('Link copied to clipboard!'))
-        .catch((err) => console.error('Error copying link:', err))
-    }
-  }
-
-  if (!isClient) {
-    return null // Prevent rendering on the server to avoid hydration mismatch
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 p-4">
+    <div className="min-h-screen p-4 bg-gradient-to-b from-gray-900 to-gray-800 text-gray-100">
+        <Appbar />
       <h1 className="text-3xl font-bold text-center mb-8 text-teal-400">MuSync</h1>
 
       <div className="max-w-4xl mx-auto grid gap-8 grid-cols-1 md:grid-cols-2">
+        {/* Currently Playing Section */}
         <div>
           <h2 className="text-2xl font-semibold mb-4 text-teal-400">Currently Playing</h2>
           <div className="aspect-video mb-4">
@@ -147,7 +146,7 @@ export default function Dashboard() {
                 width="100%"
                 height="100%"
                 src={`https://www.youtube.com/embed/${currentVideo}`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allow="autoplay; encrypted-media"
                 allowFullScreen
                 className="rounded-lg"
               ></iframe>
@@ -170,13 +169,15 @@ export default function Dashboard() {
             className="w-full mt-2 bg-purple-700 text-gray-100 hover:bg-purple-800"
           >
             <Share2 className="h-4 w-4 mr-2" />
+            <ToastContainer />
             Share Stream
           </Button>
         </div>
 
+        {/* Add to Queue Section */}
         <div>
           <h2 className="text-2xl font-semibold mb-4 text-teal-400">Add to Queue</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form className="space-y-4">
             <Input
               type="text"
               placeholder="Paste YouTube link here"
@@ -184,19 +185,16 @@ export default function Dashboard() {
               onChange={handleInputChange}
               className="bg-gray-800 border-gray-700 text-gray-100"
             />
-            <Button type="submit" onClick={() => {
-                fetch('/api/streams', {
-                    method: 'POST',
-                    body: JSON.stringify({ 
-                        creatorId: creatorId,
-                        url: videoLink
-                     }),
-                })
-            }} className="w-full bg-teal-500 text-gray-900 hover:bg-teal-400">
-              Add to Queue
+            <Button
+              type="submit"
+              className="w-full bg-teal-500 text-gray-900 hover:bg-teal-400"
+              onClick={handleSubmit}
+            >
+              {loading ? "Adding..." : "Add to Queue"}
             </Button>
           </form>
-          {previewId && (
+          {error && <p className="text-red-500 mt-2">{error}</p>}
+          {previewId && videoLink.match(YT_REGEX) && (
             <div className="mt-4">
               <h3 className="text-xl font-semibold mb-2 text-teal-400">Preview</h3>
               <div className="aspect-video">
@@ -204,7 +202,7 @@ export default function Dashboard() {
                   width="100%"
                   height="100%"
                   src={`https://www.youtube.com/embed/${previewId}`}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allow="autoplay; encrypted-media"
                   allowFullScreen
                   className="rounded-lg"
                 ></iframe>
@@ -214,6 +212,7 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Upcoming Songs Section */}
       <div className="max-w-4xl mx-auto mt-8">
         <h2 className="text-2xl font-semibold mb-4 text-teal-400">Upcoming Songs</h2>
         <div className="space-y-4">
@@ -229,18 +228,18 @@ export default function Dashboard() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    onClick={() => handleVote(video.id, true)} // upvote
-                    className={`text-teal-400 ${video.userVote === 'upvote' ? 'opacity-50 cursor-not-allowed' : 'hover:text-teal-300 hover:bg-gray-700'}`}
-                    disabled={video.userVote === 'upvote'}
+                    onClick={() => handleVote(video.id, true)}
+                    className={`text-teal-400 ${video.userVote === "upvote" ? "opacity-50" : ""}`}
+                    disabled={video.userVote === "upvote"}
                   >
                     <ThumbsUp className="h-4 w-4" />
                   </Button>
                   <Button
                     size="icon"
                     variant="ghost"
-                    onClick={() => handleVote(video.id, false)} // downvote
-                    className={`text-pink-400 ${video.userVote === 'downvote' ? 'opacity-50 cursor-not-allowed' : 'hover:text-pink-300 hover:bg-gray-700'}`}
-                    disabled={video.userVote === 'downvote'}
+                    onClick={() => handleVote(video.id, false)}
+                    className={`text-red-400 ${video.userVote === "downvote" ? "opacity-50" : ""}`}
+                    disabled={video.userVote === "downvote"}
                   >
                     <ThumbsDown className="h-4 w-4" />
                   </Button>
@@ -251,5 +250,5 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
-  )
+  );
 }
