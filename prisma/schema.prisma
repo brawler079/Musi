@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -22,22 +16,36 @@ model User {
 }
 
 model Stream {
-  id            String       @id @default(uuid())
-  type          StreamType
-  url           String
-  extractedId   String
-  active        Boolean      @default(true)
-  upvotes       Upvote[]        
-  userId        String
-  user          User         @relation(fields: [userId], references: [id])
+  id           String     @id @default(uuid())
+  type         StreamType
+  active       Boolean    @default(true)
+  played       Boolean    @default(false) // Ensure this is present
+  playedAt     DateTime?   
+  createdAt    DateTime   @default(now())
+  userId       String
+  extractedId  String
+  url          String
+  bigImg       String     @default("")
+  smallImg     String     @default("")
+  title        String     @default("")
+  user         User       @relation(fields: [userId], references: [id])
+  upvotes      Upvote[]
+  currentStream CurrentStream?
+}
+
+
+model CurrentStream {
+  userId     String    @id
+  streamId   String?   @unique
+  stream     Stream?   @relation(fields: [streamId], references: [id])
 }
 
 model Upvote {
-  id       String   @id @default(uuid())
+  id       String @id @default(uuid())
   userId   String
   streamId String
-  user     User     @relation(fields: [userId], references: [id])
-  stream   Stream   @relation(fields: [streamId], references: [id])
+  user     User   @relation(fields: [userId], references: [id])
+  stream   Stream @relation(fields: [streamId], references: [id], onDelete: Cascade)
   @@unique([userId, streamId])
 }
 

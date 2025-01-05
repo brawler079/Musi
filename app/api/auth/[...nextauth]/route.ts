@@ -10,6 +10,7 @@ const handler =  NextAuth({
           clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? ""
         })
       ],
+      secret: process.env.NEXTAUTH_SECRET,
       callbacks: {
         async signIn(params){
 
@@ -24,7 +25,8 @@ const handler =  NextAuth({
               }
             })
           } catch (error) {
-
+            console.error("Error creating user:", error);
+            return false;
           }
           return true;
         }
