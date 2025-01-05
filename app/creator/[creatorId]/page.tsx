@@ -1,16 +1,17 @@
+import StreamView from "@/app/components/StreamView";
 
-export default function ({
-    params: {
-        creatorId
-    }
+export default async function Page({
+    params
 }: {
     params: {
         creatorId: string;
     }
 }) {
+    const { creatorId } = await params;
+
     return (
         <div>
-             {creatorId}
+            <StreamView creatorId={creatorId} playVideo={false} />
         </div>
-    )
+    );
 }

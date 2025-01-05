@@ -1,8 +1,11 @@
+'use client';
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Music, Users, ThumbsUp } from "lucide-react";
 import { Appbar } from "./components/Appbar";
 import { Redirect } from "./components/Redirect";
+import { signIn } from "next-auth/react";
 
 export default function LandingPage() {
   return (
@@ -25,7 +28,9 @@ export default function LandingPage() {
                   </p>
                 </div>
                 <div className="space-x-8 space-y-2">
-                  <Button className="bg-teal-500 text-gray-900 hover:bg-teal-400">
+                  <Button className="bg-teal-500 text-gray-900 hover:bg-teal-400"
+                  onClick={() => {signIn()}}
+                  >
                     Get Started
                     <ArrowRight className=" h-4 w-4" />
                   </Button>
@@ -75,7 +80,9 @@ export default function LandingPage() {
                   </p>
                 </div>
                 <div className="space-x-4">
-                  <Button className="bg-teal-500 text-gray-900 hover:bg-teal-400">
+                  <Button className="bg-teal-500 text-gray-900 hover:bg-teal-400"
+                  onClick={() => {signIn()}}
+                  >
                     Get Started Now
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>

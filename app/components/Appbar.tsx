@@ -14,9 +14,6 @@ export function Appbar () {
           <span className="font-bold text-teal-400">MuSync</span>
         </Link>
         <nav className="ml-auto flex gap-4 sm:gap-6">
-          <Link className="text-sm my-auto font-medium text-gray-300 hover:text-teal-500" href="#features">
-            Features
-          </Link>
           <Link className="text-sm my-auto font-medium text-gray-300 hover:text-teal-500" href="#">
             Pricing
           </Link>
